@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex,nofollow">
+  <title>Профиль администратора — ARC.FITNESS</title>
+  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Oswald:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/static/css/style.css"><script src="/static/js/app.js" defer></script>
+</head>
+<body data-page="admin">
+<div id="site-header"></div>
+<main>
+  <section class="page-hero page-hero-compact"><div class="container">
+    <p class="eyebrow">ARC.FITNESS / ADMIN</p><h1 class="page-title">ПРОФИЛЬ<br><span>АДМИНИСТРАТОРА.</span></h1>
+    <p class="page-lead">Вы вошли как администратор. Клиенты, заявки и расписание клуба.</p>
+  </div></section>
+  <section class="section section-pad"><div class="container admin-wrap">
+    <div class="admin-toolbar"><div><p class="eyebrow">ARC.FITNESS</p><h2>Администратор</h2><p class="muted">Управление клиентской базой и работой клуба</p></div><div class="admin-toolbar-actions"><button class="button button-outline" data-admin-refresh type="button">Обновить данные ↻</button><button class="button button-outline" data-admin-logout type="button">Выйти ↗</button></div></div>
+    <p class="form-status" data-admin-status aria-live="polite"></p>
+    <div class="admin-stat-grid admin-stat-grid-three" data-admin-stats>
+      <div class="admin-stat"><span>Клиенты</span><strong>—</strong></div><div class="admin-stat"><span>Новые заявки</span><strong>—</strong></div><div class="admin-stat"><span>Активные записи</span><strong>—</strong></div>
+    </div>
+
+    <section class="dashboard-panel admin-section" id="admin-requests"><div class="panel-heading"><div><p class="eyebrow">01 — ЗАЯВКИ</p><h2>Все заявки</h2></div>
+      <label class="admin-inline-filter">Показать<select data-request-filter><option value="all">Все заявки</option><option value="new">Только новые</option><option value="callback">Обратный звонок</option><option value="membership">Абонементы</option><option value="booking">Записи на тренировки</option></select></label>
+    </div>
+    <div class="admin-table-wrap"><table class="admin-table admin-table-large"><thead><tr><th>Тип / дата</th><th>Клиент и контакты</th><th>Содержание заявки</th><th>Статус</th><th>Действие</th></tr></thead><tbody data-admin-requests><tr><td colspan="5">Загрузка…</td></tr></tbody></table></div>
+    </section>
+
+    <section class="dashboard-panel admin-section" id="admin-clients"><div class="panel-heading"><div><p class="eyebrow">02 — КЛИЕНТЫ</p><h2>Все клиенты</h2></div><label class="admin-inline-filter">Поиск<input data-client-search type="search" placeholder="Имя, email или телефон"></label></div>
+      <div class="admin-table-wrap"><table class="admin-table admin-table-large"><thead><tr><th>Клиент</th><th>Контакты</th><th>Аккаунт</th><th>Абонемент</th><th></th></tr></thead><tbody data-admin-clients><tr><td colspan="5">Загрузка…</td></tr></tbody></table></div>
+    </section>
+
+    <section class="dashboard-panel admin-section" id="admin-bookings"><div class="panel-heading"><div><p class="eyebrow">03 — ЗАПИСИ</p><h2>Групповые тренировки</h2><p class="muted">Перенос и отмена записей с обновлением свободных мест в базе данных.</p></div></div>
+      <div class="admin-table-wrap"><table class="admin-table admin-table-large"><thead><tr><th>Запись</th><th>Клиент</th><th>Текущее занятие</th><th>Перенести на</th><th>Статус / действие</th></tr></thead><tbody data-admin-bookings><tr><td colspan="5">Загрузка…</td></tr></tbody></table></div>
+    </section>
+
+    <section class="dashboard-panel admin-section" id="admin-schedule"><div class="panel-heading"><div><p class="eyebrow">04 — РАСПИСАНИЕ</p><h2>Управление расписанием</h2></div></div>
+      <form class="admin-class-form" data-admin-class-form>
+        <input type="hidden" name="class_id">
+        <div class="admin-form-grid">
+          <label>Название занятия<input name="title" required minlength="2" maxlength="120"></label>
+          <label>Категория<select name="category" required><option value="Силовая">Силовая</option><option value="Функциональная">Функциональная</option><option value="Кардио">Кардио</option><option value="Растяжка">Растяжка</option></select></label>
+          <label>День недели<select name="day_of_week" required><option value="0">Понедельник</option><option value="1">Вторник</option><option value="2">Среда</option><option value="3">Четверг</option><option value="4">Пятница</option><option value="5">Суббота</option><option value="6">Воскресенье</option></select></label>
+          <label>Время начала<input name="starts_at" type="time" required value="18:00"></label>
+          <label>Длительность, минут<input name="duration_minutes" type="number" min="10" max="240" value="45" required></label>
+          <label>Зал<input name="room" required maxlength="80" value="Основной зал"></label>
+          <label>Тренер<select name="trainer_id" data-class-trainer><option value="">Без выбранного тренера</option></select></label>
+          <label>Вместимость группы<input name="capacity" type="number" min="1" max="300" value="12" required></label>
+        </div>
+        <div class="admin-form-actions"><button class="button button-lime" type="submit" data-class-submit>Добавить занятие</button><button class="button button-outline" type="button" data-class-cancel hidden>Отменить редактирование</button></div>
+        <p class="form-status" data-class-form-status aria-live="polite"></p>
+      </form>
+      <div class="admin-table-wrap top-gap"><table class="admin-table admin-table-large"><thead><tr><th>День и время</th><th>Занятие</th><th>Тренер / зал</th><th>Места</th><th>Действия</th></tr></thead><tbody data-admin-classes><tr><td colspan="5">Загрузка…</td></tr></tbody></table></div>
+    </section>
+  </div></section>
+</main>
+<dialog class="client-dialog" data-client-dialog aria-labelledby="client-dialog-title"><div class="client-dialog-head"><div><p class="eyebrow">ARC.FITNESS / CLIENT</p><h2 id="client-dialog-title">Карточка клиента</h2></div><button class="icon-button" type="button" data-close-client aria-label="Закрыть">×</button></div><div data-client-detail class="client-dialog-content"><p>Загружаем информацию…</p></div></dialog>
+<div id="site-footer"></div>
+</body>
+</html>
