@@ -17,6 +17,7 @@ from urllib.request import Request as URLRequest, urlopen
 import bcrypt
 from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException, Request, Response, status
+from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, EmailStr, Field
@@ -39,6 +40,10 @@ app = FastAPI(
     version="1.0.0",
     description="API веб-приложения фитнес-клуба ARC.FITNESS",
 )
+
+# GZip сжатие для оптимизации загрузки (уменьшение размера на 70-90%)
+app.add_middleware(GZipMiddleware, minimum_size=500, compresslevel=9)
+
 app.mount("/static", StaticFiles(directory=ROOT / "static"), name="static")
 
 PAGE_FILES = {
