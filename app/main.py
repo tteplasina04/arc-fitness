@@ -1358,6 +1358,8 @@ def html_page(page_name: str, request: Request):
                 current = current_user_from_request(conn, request)
                 if not current:
                     return RedirectResponse(url="/login?next=/admin", status_code=303)
+                if current["role"] == "editor":
+                    return RedirectResponse(url="/editor", status_code=303)
                 if current["role"] != "admin":
                     return RedirectResponse(url="/account", status_code=303)
         except Exception as exc:
@@ -1369,11 +1371,24 @@ def html_page(page_name: str, request: Request):
                 current = current_user_from_request(conn, request)
                 if not current:
                     return RedirectResponse(url="/login?next=/editor", status_code=303)
+                if current["role"] == "admin":
+                    return RedirectResponse(url="/admin", status_code=303)
                 if current["role"] != "editor":
                     return RedirectResponse(url="/account", status_code=303)
         except Exception as exc:
             logger.warning("Editor page access check failed: %s", exc)
             return RedirectResponse(url="/login?next=/editor", status_code=303)
+    if page_name == "account":
+        try:
+            with connection() as conn:
+                current = current_user_from_request(conn, request)
+                if current:
+                    if current["role"] == "admin":
+                        return RedirectResponse(url="/admin", status_code=303)
+                    if current["role"] == "editor":
+                        return RedirectResponse(url="/editor", status_code=303)
+        except Exception:
+            pass  # Если не авторизован, показываем страницу логина через JS
     file_name = PAGE_FILES.get(page_name)
     if not file_name:
         raise HTTPException(status_code=404, detail="Страница не найдена.")
