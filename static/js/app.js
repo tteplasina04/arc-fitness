@@ -539,7 +539,14 @@
     try {
       const { user } = await api('/api/auth/me');
       currentUser = user;
-      console.log('Current user role:', user.role);
+      console.log('setupAdmin: Current user role:', user.role);
+      
+      // Проверяем что пользователь имеет доступ
+      if (user.role !== 'admin' && user.role !== 'editor') {
+        console.log('User is not admin or editor, redirecting to account');
+        location.href = '/account';
+        return;
+      }
       
       // Если редактор - скрываем секции с клиентами
       if (user.role === 'editor') {
@@ -565,6 +572,9 @@
         location.href = '/account';
         return;
       }
+      // Не редиректим при других ошибках, показываем сообщение
+      setStatus(statusEl, 'Ошибка при проверке прав доступа', 'error');
+      return;
     }
 
     function renderRequests() {
@@ -727,29 +737,19 @@
     async function loadAdminData() {
       setStatus(statusEl, 'Загружаем данные…');
       try {
-        // Если роль ещё не определена - получаем её
+        console.log('loadAdminData called, currentUser:', currentUser?.role);
+
+        // currentUser уже должен быть установлен в setupAdmin
         if (!currentUser) {
-          try {
-            const { user } = await api('/api/auth/me');
-            currentUser = user;
-          } catch (error) {
-            console.error('Failed to get current user:', error);
-            if (error.status === 401) {
-              location.href = '/login?next=/admin';
-              return;
-            }
-            if (error.status === 403) {
-              location.href = '/account';
-              return;
-            }
-            throw error;
-          }
+          console.error('currentUser is not set!');
+          setStatus(statusEl, 'Ошибка: роль пользователя не определена', 'error');
+          return;
         }
 
-        console.log('Loading data for role:', currentUser?.role);
+        console.log('Loading data for role:', currentUser.role);
 
         // Редактор загружает только расписание, новости и тренеров
-        if (currentUser?.role === 'editor') {
+        if (currentUser.role === 'editor') {
           const [classes, trainers, news] = await Promise.all([
             api('/api/admin/classes'), api('/api/trainers'), api('/api/admin/news')
           ]);
