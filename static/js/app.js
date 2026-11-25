@@ -539,9 +539,11 @@
     try {
       const { user } = await api('/api/auth/me');
       currentUser = user;
+      console.log('Current user role:', user.role);
       
       // Если редактор - скрываем секции с клиентами
       if (user.role === 'editor') {
+        console.log('Editor detected, hiding client sections');
         $('#admin-requests')?.remove();
         $('#admin-clients')?.remove();
         $('#admin-bookings')?.remove();
@@ -549,6 +551,7 @@
         if (toolbar) toolbar.textContent = 'Редактор контента';
       }
     } catch (error) {
+      console.error('Auth check failed:', error);
       if (error.status === 401) {
         location.href = '/login?next=/admin';
         return;
@@ -729,7 +732,9 @@
           newsItems = news.items || [];
           fillTrainerSelect();
           if (statsEl) statsEl.innerHTML = `<div class="admin-stat"><span>Занятий в расписании</span><strong>${classItems.length}</strong></div><div class="admin-stat"><span>Новостей</span><strong>${newsItems.length}</strong></div><div class="admin-stat"><span>Редактор</span><strong>✓</strong></div>`;
-          renderClasses(); renderNews();
+          renderClasses(); 
+          renderNews();
+          setStatus(statusEl, 'Данные обновлены.', 'success');
         } else {
           // Админ загружает всё
           const [requests, clients, bookings, classes, trainers, news] = await Promise.all([
@@ -745,9 +750,13 @@
           const newRequests = requestItems.filter(item => item.status === 'new').length;
           const activeBookings = bookingItems.filter(item => item.status === 'active').length;
           if (statsEl) statsEl.innerHTML = `<div class="admin-stat"><span>Клиенты</span><strong>${clientItems.length}</strong></div><div class="admin-stat"><span>Новые заявки</span><strong>${newRequests}</strong></div><div class="admin-stat"><span>Активные записи</span><strong>${activeBookings}</strong></div>`;
-          renderRequests(); renderClients(); renderBookings(); renderClasses(); renderNews();
+          renderRequests(); 
+          renderClients(); 
+          renderBookings(); 
+          renderClasses(); 
+          renderNews();
+          setStatus(statusEl, 'Данные обновлены.', 'success');
         }
-        setStatus(statusEl, 'Данные обновлены.', 'success');
       } catch (error) {
         setStatus(statusEl, error.status === 401 ? 'Войдите в аккаунт администратора.' : error.status === 403 ? 'Доступ разрешён только администратору.' : 'Не удалось загрузить данные. Попробуйте обновить страницу.', 'error');
         if (error.status === 401) setTimeout(() => { location.href = '/login?next=/admin'; }, 700);
