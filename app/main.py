@@ -41,7 +41,7 @@ app = FastAPI(
     description="API веб-приложения фитнес-клуба ARC.FITNESS",
 )
 
-# GZip сжатие для оптимизации загрузки (уменьшение размера на 70-90%)
+
 app.add_middleware(GZipMiddleware, minimum_size=500, compresslevel=9)
 
 app.mount("/static", StaticFiles(directory=ROOT / "static"), name="static")
@@ -1292,6 +1292,27 @@ def admin_create_news(payload: NewsCreateInput, request: Request):
     except Exception as exc:
         logger.warning("admin_create_news failed: %s", exc)
         raise HTTPException(status_code=503, detail="Не удалось опубликовать новость.")
+
+
+@app.put("/api/admin/news/{news_id}")
+def admin_update_news(news_id: int, payload: NewsCreateInput, request: Request):
+    try:
+        with connection() as conn, conn.cursor() as cur:
+            require_admin(conn, request)
+            cur.execute(
+                """UPDATE news SET title=%s, category=%s, excerpt=%s, body=%s, image_path=%s
+                   WHERE id=%s RETURNING id""",
+                (payload.title.strip(), payload.category.strip(), payload.excerpt.strip(), 
+                 payload.body.strip(), payload.image_path.strip(), news_id),
+            )
+            if not cur.fetchone():
+                raise HTTPException(status_code=404, detail="Новость не найдена.")
+        return {"ok": True, "message": "Новость обновлена."}
+    except HTTPException:
+        raise
+    except Exception as exc:
+        logger.warning("admin_update_news failed: %s", exc)
+        raise HTTPException(status_code=503, detail="Не удалось обновить новость.")
 
 
 @app.delete("/api/admin/news/{news_id}")

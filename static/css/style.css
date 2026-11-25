@@ -403,6 +403,7 @@ textarea { resize: vertical; min-height: 86px; }
 .admin-table button:hover { background: var(--lime); color: #11150d; }
 .admin-form-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 0 15px; align-items: end; }
 .admin-form-grid .form-span-all { grid-column: 1 / -1; }
+.admin-form-grid .label-full { grid-column: 1 / -1; }
 .admin-form-grid .button { justify-self: start; margin-bottom: 17px; }
 .admin-news-list { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin-top: 25px; }
 .admin-news-row { display: flex; justify-content: space-between; gap: 15px; align-items: start; padding: 12px; border: 1px solid var(--line); }

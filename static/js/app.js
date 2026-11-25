@@ -694,19 +694,20 @@
     async function loadAdminData() {
       setStatus(statusEl, 'Загружаем данные…');
       try {
-        const [requests, clients, bookings, classes, trainers] = await Promise.all([
-          api('/api/admin/requests'), api('/api/admin/clients'), api('/api/admin/bookings'), api('/api/admin/classes'), api('/api/trainers')
+        const [requests, clients, bookings, classes, trainers, news] = await Promise.all([
+          api('/api/admin/requests'), api('/api/admin/clients'), api('/api/admin/bookings'), api('/api/admin/classes'), api('/api/trainers'), api('/api/admin/news')
         ]);
         requestItems = requests.items || [];
         clientItems = clients.items || [];
         bookingItems = bookings.items || [];
         classItems = classes.items || [];
         trainerItems = trainers.items || [];
+        newsItems = news.items || [];
         fillTrainerSelect();
         const newRequests = requestItems.filter(item => item.status === 'new').length;
         const activeBookings = bookingItems.filter(item => item.status === 'active').length;
         if (statsEl) statsEl.innerHTML = `<div class="admin-stat"><span>Клиенты</span><strong>${clientItems.length}</strong></div><div class="admin-stat"><span>Новые заявки</span><strong>${newRequests}</strong></div><div class="admin-stat"><span>Активные записи</span><strong>${activeBookings}</strong></div>`;
-        renderRequests(); renderClients(); renderBookings(); renderClasses();
+        renderRequests(); renderClients(); renderBookings(); renderClasses(); renderNews();
         setStatus(statusEl, 'Данные обновлены.', 'success');
       } catch (error) {
         setStatus(statusEl, error.status === 401 ? 'Войдите в аккаунт администратора.' : error.status === 403 ? 'Доступ разрешён только администратору.' : 'Не удалось загрузить данные. Попробуйте обновить страницу.', 'error');
@@ -789,6 +790,91 @@
       finally { if (submitButton) submitButton.disabled = false; }
     });
     classCancel?.addEventListener('click', resetClassForm);
+
+    // ============ NEWS MANAGEMENT ============
+    const newsForm = $('[data-admin-news-form]');
+    const newsFormStatus = $('[data-news-form-status]');
+    const newsSubmit = $('[data-news-submit]');
+    const newsCancel = $('[data-news-cancel]');
+    const newsList = $('[data-admin-news-list]');
+    let newsItems = [];
+
+    function resetNewsForm() {
+      newsForm?.reset();
+      const idInput = $('[name="news_id"]', newsForm);
+      if (idInput) idInput.value = '';
+      if (newsSubmit) newsSubmit.textContent = 'Опубликовать новость';
+      if (newsCancel) newsCancel.hidden = true;
+      setStatus(newsFormStatus, '');
+    }
+
+    function renderNews() {
+      if (!newsList) return;
+      if (!newsItems.length) {
+        newsList.innerHTML = '<tr><td colspan="5"><div class="admin-empty">Новостей пока нет.</div></td></tr>';
+        return;
+      }
+      newsList.innerHTML = newsItems.map(item => `<tr>
+        <td><span class="admin-contact-name">${escapeHtml(item.title)}</span><span class="admin-contact-line">${escapeHtml(item.excerpt.slice(0, 80))}${item.excerpt.length > 80 ? '...' : ''}</span></td>
+        <td>${escapeHtml(item.category)}</td>
+        <td>${escapeHtml(formatDate(item.published_at))}</td>
+        <td>${statusTag(item.is_published ? 'active' : 'cancelled')}<span class="admin-contact-line">${item.is_published ? 'Опубликована' : 'Скрыта'}</span></td>
+        <td><div class="admin-row-actions"><button type="button" data-edit-news="${item.id}">Изменить</button><button type="button" class="danger-action" data-hide-news="${item.id}">Скрыть</button></div></td>
+      </tr>`).join('');
+      
+      $$('[data-edit-news]', newsList).forEach(button => button.addEventListener('click', () => {
+        const item = newsItems.find(row => Number(row.id) === Number(button.dataset.editNews));
+        if (!item || !newsForm) return;
+        $('[name="news_id"]', newsForm).value = item.id;
+        $('[name="title"]', newsForm).value = item.title;
+        $('[name="category"]', newsForm).value = item.category;
+        $('[name="image_path"]', newsForm).value = item.image_path || '';
+        $('[name="excerpt"]', newsForm).value = item.excerpt;
+        $('[name="body"]', newsForm).value = item.body;
+        if (newsSubmit) newsSubmit.textContent = 'Сохранить изменения';
+        if (newsCancel) newsCancel.hidden = false;
+        setStatus(newsFormStatus, `Редактирование: ${item.title}`);
+        newsForm.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }));
+      
+      $$('[data-hide-news]', newsList).forEach(button => button.addEventListener('click', async () => {
+        if (!confirm('Снять новость с публикации?')) return;
+        button.disabled = true;
+        try {
+          const result = await api(`/api/admin/news/${button.dataset.hideNews}`, { method: 'DELETE' });
+          setStatus(statusEl, result.message, 'success');
+          await loadAdminData();
+        } catch (error) { setStatus(statusEl, error.message, 'error'); button.disabled = false; }
+      }));
+    }
+
+    newsForm?.addEventListener('submit', async event => {
+      event.preventDefault();
+      const submitButton = $('button[type="submit"]', newsForm);
+      const raw = formDataObject(newsForm);
+      const newsId = raw.news_id;
+      const payload = {
+        title: raw.title,
+        category: raw.category,
+        excerpt: raw.excerpt,
+        body: raw.body,
+        image_path: raw.image_path || '/static/images/news-placeholder.jpg'
+      };
+      if (submitButton) submitButton.disabled = true;
+      setStatus(newsFormStatus, 'Сохраняем новость…');
+      try {
+        const result = newsId
+          ? await api(`/api/admin/news/${newsId}`, { method: 'PUT', body: JSON.stringify(payload) })
+          : await api('/api/admin/news', { method: 'POST', body: JSON.stringify(payload) });
+        setStatus(newsFormStatus, result.message, 'success');
+        resetNewsForm();
+        await loadAdminData();
+      } catch (error) { setStatus(newsFormStatus, error.message, 'error'); }
+      finally { if (submitButton) submitButton.disabled = false; }
+    });
+    
+    newsCancel?.addEventListener('click', resetNewsForm);
+    // ============ END NEWS MANAGEMENT ============
 
     $('[data-admin-refresh]')?.addEventListener('click', loadAdminData);
     $('[data-admin-logout]')?.addEventListener('click', async () => {
