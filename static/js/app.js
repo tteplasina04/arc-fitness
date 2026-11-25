@@ -62,8 +62,16 @@
     const accountLink = $('.header-cta');
     if (accountLink) {
       api('/api/auth/me').then(({ user }) => {
-        accountLink.href = (user.role === 'admin' || user.role === 'editor') ? '/admin' : '/account';
-        accountLink.textContent = user.role === 'admin' ? 'Администратор ↗' : user.role === 'editor' ? 'Редактор ↗' : 'Кабинет ↗';
+        if (user.role === 'admin') {
+          accountLink.href = '/admin';
+          accountLink.textContent = 'Администратор ↗';
+        } else if (user.role === 'editor') {
+          accountLink.href = '/editor';
+          accountLink.textContent = 'Редактор ↗';
+        } else {
+          accountLink.href = '/account';
+          accountLink.textContent = 'Кабинет ↗';
+        }
       }).catch(() => {
         accountLink.href = '/login';
         accountLink.textContent = 'Войти ↗';
@@ -413,7 +421,14 @@
       location.href = '/login?next=/account';
       return;
     }
-    if (user.role === 'admin' || user.role === 'editor') { location.replace('/admin'); return; }
+    if (user.role === 'admin') { 
+      location.replace('/admin'); 
+      return; 
+    }
+    if (user.role === 'editor') { 
+      location.replace('/editor'); 
+      return; 
+    }
     const name = $('[data-profile-name]');
     const email = $('[data-profile-email]');
     const avatar = $('[data-avatar]');
