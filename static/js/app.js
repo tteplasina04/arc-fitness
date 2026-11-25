@@ -62,8 +62,8 @@
     const accountLink = $('.header-cta');
     if (accountLink) {
       api('/api/auth/me').then(({ user }) => {
-        accountLink.href = user.role === 'admin' ? '/admin' : '/account';
-        accountLink.textContent = user.role === 'admin' ? 'Администратор ↗' : 'Кабинет ↗';
+        accountLink.href = (user.role === 'admin' || user.role === 'editor') ? '/admin' : '/account';
+        accountLink.textContent = user.role === 'admin' ? 'Администратор ↗' : user.role === 'editor' ? 'Редактор ↗' : 'Кабинет ↗';
       }).catch(() => {
         accountLink.href = '/login';
         accountLink.textContent = 'Войти ↗';
@@ -376,7 +376,7 @@
     else {
       try {
         const { user } = await api('/api/auth/me');
-        location.href = user.role === 'admin' ? '/admin' : '/account';
+        location.href = (user.role === 'admin' || user.role === 'editor') ? '/admin' : '/account';
       } catch { location.href = '/account'; }
     }
     return true;
@@ -411,7 +411,7 @@
       location.href = '/login?next=/account';
       return;
     }
-    if (user.role === 'admin') { location.replace('/admin'); return; }
+    if (user.role === 'admin' || user.role === 'editor') { location.replace('/admin'); return; }
     const name = $('[data-profile-name]');
     const email = $('[data-profile-email]');
     const avatar = $('[data-avatar]');
@@ -528,11 +528,36 @@
     let bookingItems = [];
     let classItems = [];
     let trainerItems = [];
+    let currentUser = null;
 
     const statusLabels = { new: 'Новая', processed: 'Обработана', cancelled: 'Отменена', closed: 'Закрыта', active: 'Активна', revoked: 'Отвязана', expired: 'Истекла' };
     const formatDate = value => value ? new Date(value).toLocaleString('ru-RU', { dateStyle: 'short', timeStyle: 'short' }) : '—';
     const statusTag = status => `<span class="admin-status-tag admin-status-${escapeHtml(status || 'new')}">${escapeHtml(statusLabels[status] || status || '—')}</span>`;
     const classLabel = item => `${daysRu[item.day_of_week] || 'День не указан'} · ${String(item.starts_at || '').slice(0, 5)} — ${item.title}${item.room ? ` · ${item.room}` : ''}`;
+
+    // Проверяем роль пользователя
+    try {
+      const { user } = await api('/api/auth/me');
+      currentUser = user;
+      
+      // Если редактор - скрываем секции с клиентами
+      if (user.role === 'editor') {
+        $('#admin-requests')?.remove();
+        $('#admin-clients')?.remove();
+        $('#admin-bookings')?.remove();
+        const toolbar = $('.admin-toolbar h2');
+        if (toolbar) toolbar.textContent = 'Редактор контента';
+      }
+    } catch (error) {
+      if (error.status === 401) {
+        location.href = '/login?next=/admin';
+        return;
+      }
+      if (error.status === 403) {
+        location.href = '/account';
+        return;
+      }
+    }
 
     function renderRequests() {
       if (!requestsTable) return;
@@ -694,20 +719,34 @@
     async function loadAdminData() {
       setStatus(statusEl, 'Загружаем данные…');
       try {
-        const [requests, clients, bookings, classes, trainers, news] = await Promise.all([
-          api('/api/admin/requests'), api('/api/admin/clients'), api('/api/admin/bookings'), api('/api/admin/classes'), api('/api/trainers'), api('/api/admin/news')
-        ]);
-        requestItems = requests.items || [];
-        clientItems = clients.items || [];
-        bookingItems = bookings.items || [];
-        classItems = classes.items || [];
-        trainerItems = trainers.items || [];
-        newsItems = news.items || [];
-        fillTrainerSelect();
-        const newRequests = requestItems.filter(item => item.status === 'new').length;
-        const activeBookings = bookingItems.filter(item => item.status === 'active').length;
-        if (statsEl) statsEl.innerHTML = `<div class="admin-stat"><span>Клиенты</span><strong>${clientItems.length}</strong></div><div class="admin-stat"><span>Новые заявки</span><strong>${newRequests}</strong></div><div class="admin-stat"><span>Активные записи</span><strong>${activeBookings}</strong></div>`;
-        renderRequests(); renderClients(); renderBookings(); renderClasses(); renderNews();
+        // Редактор загружает только расписание, новости и тренеров
+        if (currentUser?.role === 'editor') {
+          const [classes, trainers, news] = await Promise.all([
+            api('/api/admin/classes'), api('/api/trainers'), api('/api/admin/news')
+          ]);
+          classItems = classes.items || [];
+          trainerItems = trainers.items || [];
+          newsItems = news.items || [];
+          fillTrainerSelect();
+          if (statsEl) statsEl.innerHTML = `<div class="admin-stat"><span>Занятий в расписании</span><strong>${classItems.length}</strong></div><div class="admin-stat"><span>Новостей</span><strong>${newsItems.length}</strong></div><div class="admin-stat"><span>Редактор</span><strong>✓</strong></div>`;
+          renderClasses(); renderNews();
+        } else {
+          // Админ загружает всё
+          const [requests, clients, bookings, classes, trainers, news] = await Promise.all([
+            api('/api/admin/requests'), api('/api/admin/clients'), api('/api/admin/bookings'), api('/api/admin/classes'), api('/api/trainers'), api('/api/admin/news')
+          ]);
+          requestItems = requests.items || [];
+          clientItems = clients.items || [];
+          bookingItems = bookings.items || [];
+          classItems = classes.items || [];
+          trainerItems = trainers.items || [];
+          newsItems = news.items || [];
+          fillTrainerSelect();
+          const newRequests = requestItems.filter(item => item.status === 'new').length;
+          const activeBookings = bookingItems.filter(item => item.status === 'active').length;
+          if (statsEl) statsEl.innerHTML = `<div class="admin-stat"><span>Клиенты</span><strong>${clientItems.length}</strong></div><div class="admin-stat"><span>Новые заявки</span><strong>${newRequests}</strong></div><div class="admin-stat"><span>Активные записи</span><strong>${activeBookings}</strong></div>`;
+          renderRequests(); renderClients(); renderBookings(); renderClasses(); renderNews();
+        }
         setStatus(statusEl, 'Данные обновлены.', 'success');
       } catch (error) {
         setStatus(statusEl, error.status === 401 ? 'Войдите в аккаунт администратора.' : error.status === 403 ? 'Доступ разрешён только администратору.' : 'Не удалось загрузить данные. Попробуйте обновить страницу.', 'error');

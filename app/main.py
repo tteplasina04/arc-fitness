@@ -244,6 +244,14 @@ def require_admin(conn, request: Request):
     return user
 
 
+def require_editor_or_admin(conn, request: Request):
+    """Проверка что пользователь админ или редактор"""
+    user = require_user(conn, request)
+    if user["role"] not in ("admin", "editor"):
+        raise HTTPException(status_code=403, detail="Недостаточно прав для доступа к этому разделу.")
+    return user
+
+
 def public_user(user) -> dict:
     return {
         "id": user["id"],
@@ -1057,7 +1065,7 @@ def admin_revoke_membership(user_id: int, request: Request):
 def admin_group_classes(request: Request):
     try:
         with connection() as conn, conn.cursor() as cur:
-            require_admin(conn, request)
+            require_editor_or_admin(conn, request)
             cur.execute(
                 """SELECT c.id, c.title, c.category, c.day_of_week, c.starts_at, c.duration_minutes,
                           c.room, c.trainer_id, c.capacity, c.booked_count, t.name AS trainer_name
@@ -1154,7 +1162,7 @@ def admin_create_class(payload: ClassCreateInput, request: Request):
         raise HTTPException(status_code=422, detail="Онлайн-расписание предназначено для групповых занятий.")
     try:
         with connection() as conn, conn.cursor() as cur:
-            require_admin(conn, request)
+            require_editor_or_admin(conn, request)
             if payload.trainer_id is not None:
                 cur.execute("SELECT id FROM trainers WHERE id=%s AND is_active=TRUE", (payload.trainer_id,))
                 if not cur.fetchone():
@@ -1181,7 +1189,7 @@ def admin_update_class(class_id: int, payload: AdminClassUpdateInput, request: R
         raise HTTPException(status_code=422, detail="Нет изменений для сохранения.")
     try:
         with connection() as conn, conn.cursor() as cur:
-            require_admin(conn, request)
+            require_editor_or_admin(conn, request)
             cur.execute(
                 """SELECT id, title, category, day_of_week, starts_at, duration_minutes, room,
                           trainer_id, capacity, booked_count, is_active
@@ -1244,7 +1252,7 @@ def admin_update_class(class_id: int, payload: AdminClassUpdateInput, request: R
 def admin_delete_class(class_id: int, request: Request):
     try:
         with connection() as conn, conn.cursor() as cur:
-            require_admin(conn, request)
+            require_editor_or_admin(conn, request)
             cur.execute("SELECT id FROM classes WHERE id=%s AND is_active=TRUE FOR UPDATE", (class_id,))
             if not cur.fetchone():
                 raise HTTPException(status_code=404, detail="Занятие не найдено.")
@@ -1265,7 +1273,7 @@ def admin_delete_class(class_id: int, request: Request):
 def admin_news(request: Request):
     try:
         with connection() as conn, conn.cursor() as cur:
-            require_admin(conn, request)
+            require_editor_or_admin(conn, request)
             cur.execute("SELECT id, title, category, excerpt, body, image_path, published_at, is_published FROM news ORDER BY published_at DESC")
             return {"items": cur.fetchall()}
     except HTTPException:
@@ -1279,7 +1287,7 @@ def admin_news(request: Request):
 def admin_create_news(payload: NewsCreateInput, request: Request):
     try:
         with connection() as conn, conn.cursor() as cur:
-            require_admin(conn, request)
+            require_editor_or_admin(conn, request)
             cur.execute(
                 """INSERT INTO news (title, category, excerpt, body, image_path, published_at, is_published)
                    VALUES (%s, %s, %s, %s, %s, NOW(), TRUE) RETURNING id""",
@@ -1298,7 +1306,7 @@ def admin_create_news(payload: NewsCreateInput, request: Request):
 def admin_update_news(news_id: int, payload: NewsCreateInput, request: Request):
     try:
         with connection() as conn, conn.cursor() as cur:
-            require_admin(conn, request)
+            require_editor_or_admin(conn, request)
             cur.execute(
                 """UPDATE news SET title=%s, category=%s, excerpt=%s, body=%s, image_path=%s
                    WHERE id=%s RETURNING id""",
@@ -1319,7 +1327,7 @@ def admin_update_news(news_id: int, payload: NewsCreateInput, request: Request):
 def admin_delete_news(news_id: int, request: Request):
     try:
         with connection() as conn, conn.cursor() as cur:
-            require_admin(conn, request)
+            require_editor_or_admin(conn, request)
             cur.execute("UPDATE news SET is_published=FALSE WHERE id=%s RETURNING id", (news_id,))
             if not cur.fetchone():
                 raise HTTPException(status_code=404, detail="Новость не найдена.")

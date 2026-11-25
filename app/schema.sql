@@ -5,7 +5,7 @@ CREATE TABLE IF NOT EXISTS users (
     full_name TEXT NOT NULL,
     password_hash TEXT NOT NULL,
     is_verified BOOLEAN NOT NULL DEFAULT FALSE,
-    role TEXT NOT NULL DEFAULT 'user' CHECK (role IN ('user', 'admin')),
+    role TEXT NOT NULL DEFAULT 'user' CHECK (role IN ('user', 'admin', 'editor')),
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
