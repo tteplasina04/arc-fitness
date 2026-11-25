@@ -535,7 +535,7 @@
     const statusTag = status => `<span class="admin-status-tag admin-status-${escapeHtml(status || 'new')}">${escapeHtml(statusLabels[status] || status || '—')}</span>`;
     const classLabel = item => `${daysRu[item.day_of_week] || 'День не указан'} · ${String(item.starts_at || '').slice(0, 5)} — ${item.title}${item.room ? ` · ${item.room}` : ''}`;
 
-    // Проверяем роль пользователя
+    // Проверяем роль пользователя и скрываем ненужные секции
     try {
       const { user } = await api('/api/auth/me');
       currentUser = user;
@@ -544,9 +544,14 @@
       // Если редактор - скрываем секции с клиентами
       if (user.role === 'editor') {
         console.log('Editor detected, hiding client sections');
-        $('#admin-requests')?.remove();
-        $('#admin-clients')?.remove();
-        $('#admin-bookings')?.remove();
+        const requestsSection = $('#admin-requests');
+        const clientsSection = $('#admin-clients');
+        const bookingsSection = $('#admin-bookings');
+        
+        if (requestsSection) requestsSection.style.display = 'none';
+        if (clientsSection) clientsSection.style.display = 'none';
+        if (bookingsSection) bookingsSection.style.display = 'none';
+        
         const toolbar = $('.admin-toolbar h2');
         if (toolbar) toolbar.textContent = 'Редактор контента';
       }
@@ -722,6 +727,27 @@
     async function loadAdminData() {
       setStatus(statusEl, 'Загружаем данные…');
       try {
+        // Если роль ещё не определена - получаем её
+        if (!currentUser) {
+          try {
+            const { user } = await api('/api/auth/me');
+            currentUser = user;
+          } catch (error) {
+            console.error('Failed to get current user:', error);
+            if (error.status === 401) {
+              location.href = '/login?next=/admin';
+              return;
+            }
+            if (error.status === 403) {
+              location.href = '/account';
+              return;
+            }
+            throw error;
+          }
+        }
+
+        console.log('Loading data for role:', currentUser?.role);
+
         // Редактор загружает только расписание, новости и тренеров
         if (currentUser?.role === 'editor') {
           const [classes, trainers, news] = await Promise.all([
