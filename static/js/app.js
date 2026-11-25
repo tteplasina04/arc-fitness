@@ -376,7 +376,9 @@
     else {
       try {
         const { user } = await api('/api/auth/me');
-        location.href = (user.role === 'admin' || user.role === 'editor') ? '/admin' : '/account';
+        if (user.role === 'admin') location.href = '/admin';
+        else if (user.role === 'editor') location.href = '/editor';
+        else location.href = '/account';
       } catch { location.href = '/account'; }
     }
     return true;
@@ -962,6 +964,244 @@
     await loadAdminData();
   }
 
+  async function setupEditor() {
+    if (page !== 'editor') return;
+    const statusEl = $('[data-editor-status]');
+    const statsEl = $('[data-editor-stats]');
+    const classesTable = $('[data-editor-classes]');
+    const classForm = $('[data-editor-class-form]');
+    const classFormStatus = $('[data-class-form-status]');
+    const classTrainerSelect = $('[data-class-trainer]');
+    const classSubmit = $('[data-class-submit]');
+    const classCancel = $('[data-class-cancel]');
+    const newsForm = $('[data-editor-news-form]');
+    const newsFormStatus = $('[data-news-form-status]');
+    const newsSubmit = $('[data-news-submit]');
+    const newsCancel = $('[data-news-cancel]');
+    const newsList = $('[data-editor-news-list]');
+    
+    let classItems = [];
+    let trainerItems = [];
+    let newsItems = [];
+    let currentUser = null;
+
+    const statusLabels = { active: 'Опубликована', cancelled: 'Скрыта' };
+    const formatDate = value => value ? new Date(value).toLocaleString('ru-RU', { dateStyle: 'short', timeStyle: 'short' }) : '—';
+    const statusTag = status => `<span class="admin-status-tag admin-status-${escapeHtml(status || 'new')}">${escapeHtml(statusLabels[status] || status || '—')}</span>`;
+    const classLabel = item => `${daysRu[item.day_of_week] || 'День не указан'} · ${String(item.starts_at || '').slice(0, 5)} — ${item.title}${item.room ? ` · ${item.room}` : ''}`;
+
+    // Проверяем роль пользователя
+    try {
+      const { user } = await api('/api/auth/me');
+      currentUser = user;
+      
+      if (user.role !== 'editor') {
+        location.href = user.role === 'admin' ? '/admin' : '/account';
+        return;
+      }
+    } catch (error) {
+      if (error.status === 401) {
+        location.href = '/login?next=/editor';
+        return;
+      }
+      setStatus(statusEl, 'Ошибка при проверке прав доступа', 'error');
+      return;
+    }
+
+    function fillTrainerSelect() {
+      if (!classTrainerSelect) return;
+      const selected = classTrainerSelect.value;
+      classTrainerSelect.innerHTML = '<option value="">Без выбранного тренера</option>' + trainerItems.map(trainer => `<option value="${trainer.id}">${escapeHtml(trainer.name)} · ${escapeHtml(trainer.speciality)}</option>`).join('');
+      if (selected) classTrainerSelect.value = selected;
+    }
+
+    function resetClassForm() {
+      classForm?.reset();
+      const idInput = $('[name="class_id"]', classForm);
+      if (idInput) idInput.value = '';
+      if (classSubmit) classSubmit.textContent = 'Добавить занятие';
+      if (classCancel) classCancel.hidden = true;
+      setStatus(classFormStatus, '');
+    }
+
+    function renderClasses() {
+      if (!classesTable) return;
+      if (!classItems.length) {
+        classesTable.innerHTML = '<tr><td colspan="5"><div class="admin-empty">Групповых занятий пока нет.</div></td></tr>';
+        return;
+      }
+      classesTable.innerHTML = classItems.map(item => `<tr>
+        <td><strong>${escapeHtml(daysRu[item.day_of_week] || '')}</strong><span class="admin-contact-line">${escapeHtml(String(item.starts_at).slice(0,5))} · ${item.duration_minutes} мин.</span></td>
+        <td><span class="admin-contact-name">${escapeHtml(item.title)}</span><span class="admin-contact-line">${escapeHtml(item.category)}</span></td>
+        <td>${escapeHtml(item.trainer_name || 'Тренер не назначен')}<span class="admin-contact-line">${escapeHtml(item.room)}</span></td>
+        <td><strong>${item.available} / ${item.capacity}</strong><span class="admin-contact-line">Свободно / всего</span><span class="admin-contact-line">Записано: ${item.booked_count}</span></td>
+        <td><div class="admin-row-actions"><button type="button" data-edit-class="${item.id}">Изменить</button><button type="button" class="danger-action" data-hide-class="${item.id}">Скрыть</button></div></td>
+      </tr>`).join('');
+      
+      $$('[data-edit-class]', classesTable).forEach(button => button.addEventListener('click', () => {
+        const item = classItems.find(row => Number(row.id) === Number(button.dataset.editClass));
+        if (!item || !classForm) return;
+        $('[name="class_id"]', classForm).value = item.id;
+        $('[name="title"]', classForm).value = item.title;
+        $('[name="category"]', classForm).value = item.category;
+        $('[name="day_of_week"]', classForm).value = String(item.day_of_week);
+        $('[name="starts_at"]', classForm).value = String(item.starts_at).slice(0,5);
+        $('[name="duration_minutes"]', classForm).value = item.duration_minutes;
+        $('[name="room"]', classForm).value = item.room;
+        $('[name="trainer_id"]', classForm).value = item.trainer_id || '';
+        $('[name="capacity"]', classForm).value = item.capacity;
+        if (classSubmit) classSubmit.textContent = 'Сохранить изменения';
+        if (classCancel) classCancel.hidden = false;
+        setStatus(classFormStatus, `Редактирование: ${item.title}`);
+        classForm.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }));
+      
+      $$('[data-hide-class]', classesTable).forEach(button => button.addEventListener('click', async () => {
+        if (!confirm('Скрыть занятие из расписания?')) return;
+        button.disabled = true;
+        try {
+          const result = await api(`/api/admin/classes/${button.dataset.hideClass}`, { method: 'DELETE' });
+          setStatus(statusEl, result.message, 'success');
+          await loadEditorData();
+        } catch (error) { setStatus(statusEl, error.message, 'error'); button.disabled = false; }
+      }));
+    }
+
+    function resetNewsForm() {
+      newsForm?.reset();
+      const idInput = $('[name="news_id"]', newsForm);
+      if (idInput) idInput.value = '';
+      if (newsSubmit) newsSubmit.textContent = 'Опубликовать новость';
+      if (newsCancel) newsCancel.hidden = true;
+      setStatus(newsFormStatus, '');
+    }
+
+    function renderNews() {
+      if (!newsList) return;
+      if (!newsItems.length) {
+        newsList.innerHTML = '<tr><td colspan="5"><div class="admin-empty">Новостей пока нет.</div></td></tr>';
+        return;
+      }
+      newsList.innerHTML = newsItems.map(item => `<tr>
+        <td><span class="admin-contact-name">${escapeHtml(item.title)}</span><span class="admin-contact-line">${escapeHtml(item.excerpt.slice(0, 80))}${item.excerpt.length > 80 ? '...' : ''}</span></td>
+        <td>${escapeHtml(item.category)}</td>
+        <td>${escapeHtml(formatDate(item.published_at))}</td>
+        <td>${statusTag(item.is_published ? 'active' : 'cancelled')}<span class="admin-contact-line">${item.is_published ? 'Опубликована' : 'Скрыта'}</span></td>
+        <td><div class="admin-row-actions"><button type="button" data-edit-news="${item.id}">Изменить</button><button type="button" class="danger-action" data-hide-news="${item.id}">Скрыть</button></div></td>
+      </tr>`).join('');
+      
+      $$('[data-edit-news]', newsList).forEach(button => button.addEventListener('click', () => {
+        const item = newsItems.find(row => Number(row.id) === Number(button.dataset.editNews));
+        if (!item || !newsForm) return;
+        $('[name="news_id"]', newsForm).value = item.id;
+        $('[name="title"]', newsForm).value = item.title;
+        $('[name="category"]', newsForm).value = item.category;
+        $('[name="image_path"]', newsForm).value = item.image_path || '';
+        $('[name="excerpt"]', newsForm).value = item.excerpt;
+        $('[name="body"]', newsForm).value = item.body;
+        if (newsSubmit) newsSubmit.textContent = 'Сохранить изменения';
+        if (newsCancel) newsCancel.hidden = false;
+        setStatus(newsFormStatus, `Редактирование: ${item.title}`);
+        newsForm.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }));
+      
+      $$('[data-hide-news]', newsList).forEach(button => button.addEventListener('click', async () => {
+        if (!confirm('Снять новость с публикации?')) return;
+        button.disabled = true;
+        try {
+          const result = await api(`/api/admin/news/${button.dataset.hideNews}`, { method: 'DELETE' });
+          setStatus(statusEl, result.message, 'success');
+          await loadEditorData();
+        } catch (error) { setStatus(statusEl, error.message, 'error'); button.disabled = false; }
+      }));
+    }
+
+    async function loadEditorData() {
+      setStatus(statusEl, 'Загружаем данные…');
+      try {
+        const [classes, trainers, news] = await Promise.all([
+          api('/api/admin/classes'), api('/api/trainers'), api('/api/admin/news')
+        ]);
+        classItems = classes.items || [];
+        trainerItems = trainers.items || [];
+        newsItems = news.items || [];
+        fillTrainerSelect();
+        if (statsEl) statsEl.innerHTML = `<div class="admin-stat"><span>Занятий в расписании</span><strong>${classItems.length}</strong></div><div class="admin-stat"><span>Новостей</span><strong>${newsItems.length}</strong></div><div class="admin-stat"><span>Редактор</span><strong>✓</strong></div>`;
+        renderClasses(); 
+        renderNews();
+        setStatus(statusEl, 'Данные обновлены.', 'success');
+      } catch (error) {
+        setStatus(statusEl, error.status === 401 ? 'Войдите в аккаунт редактора.' : error.status === 403 ? 'Доступ разрешён только редактору.' : 'Не удалось загрузить данные. Попробуйте обновить страницу.', 'error');
+        if (error.status === 401) setTimeout(() => { location.href = '/login?next=/editor'; }, 700);
+        if (error.status === 403) setTimeout(() => { location.href = '/account'; }, 900);
+      }
+    }
+
+    classForm?.addEventListener('submit', async event => {
+      event.preventDefault();
+      const submitButton = $('button[type="submit"]', classForm);
+      const raw = formDataObject(classForm);
+      const classId = raw.class_id;
+      const payload = {
+        title: raw.title,
+        category: raw.category,
+        day_of_week: Number(raw.day_of_week),
+        starts_at: raw.starts_at,
+        duration_minutes: Number(raw.duration_minutes),
+        room: raw.room,
+        trainer_id: raw.trainer_id ? Number(raw.trainer_id) : null,
+        capacity: Number(raw.capacity)
+      };
+      if (submitButton) submitButton.disabled = true;
+      setStatus(classFormStatus, 'Сохраняем расписание…');
+      try {
+        const result = classId
+          ? await api(`/api/admin/classes/${classId}`, { method: 'PATCH', body: JSON.stringify(payload) })
+          : await api('/api/admin/classes', { method: 'POST', body: JSON.stringify(payload) });
+        setStatus(classFormStatus, result.message, 'success');
+        resetClassForm();
+        await loadEditorData();
+      } catch (error) { setStatus(classFormStatus, error.message, 'error'); }
+      finally { if (submitButton) submitButton.disabled = false; }
+    });
+    classCancel?.addEventListener('click', resetClassForm);
+
+    newsForm?.addEventListener('submit', async event => {
+      event.preventDefault();
+      const submitButton = $('button[type="submit"]', newsForm);
+      const raw = formDataObject(newsForm);
+      const newsId = raw.news_id;
+      const payload = {
+        title: raw.title,
+        category: raw.category,
+        excerpt: raw.excerpt,
+        body: raw.body,
+        image_path: raw.image_path || '/static/images/news-placeholder.jpg'
+      };
+      if (submitButton) submitButton.disabled = true;
+      setStatus(newsFormStatus, 'Сохраняем новость…');
+      try {
+        const result = newsId
+          ? await api(`/api/admin/news/${newsId}`, { method: 'PUT', body: JSON.stringify(payload) })
+          : await api('/api/admin/news', { method: 'POST', body: JSON.stringify(payload) });
+        setStatus(newsFormStatus, result.message, 'success');
+        resetNewsForm();
+        await loadEditorData();
+      } catch (error) { setStatus(newsFormStatus, error.message, 'error'); }
+      finally { if (submitButton) submitButton.disabled = false; }
+    });
+    
+    newsCancel?.addEventListener('click', resetNewsForm);
+
+    $('[data-editor-refresh]')?.addEventListener('click', loadEditorData);
+    $('[data-editor-logout]')?.addEventListener('click', async () => {
+      try { await api('/api/auth/logout', { method: 'POST' }); } catch { /* logout endpoint clears the session cookie */ }
+      location.href = '/';
+    });
+    
+    await loadEditorData();
+  }
+
   async function bootstrap() {
     renderShell();
     setupThemeAndMenu();
@@ -977,6 +1217,7 @@
     if (page === 'login') setupLogin();
     if (page === 'account') setupAccount();
     if (page === 'admin') setupAdmin();
+    if (page === 'editor') setupEditor();
   }
 
   document.addEventListener('DOMContentLoaded', bootstrap);

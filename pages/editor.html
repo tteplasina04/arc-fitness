@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex,nofollow">
+  <title>Редактор контента — ARC.FITNESS</title>
+  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Oswald:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/static/css/style.css"><script src="/static/js/app.js" defer></script>
+</head>
+<body data-page="editor">
+<div id="site-header"></div>
+<main>
+  <section class="page-hero page-hero-compact"><div class="container">
+    <p class="eyebrow">ARC.FITNESS / EDITOR</p><h1 class="page-title">РЕДАКТОР<br><span>КОНТЕНТА.</span></h1>
+    <p class="page-lead">Управление расписанием и новостями клуба.</p>
+  </div></section>
+  <section class="section section-pad"><div class="container admin-wrap">
+    <div class="admin-toolbar"><div><p class="eyebrow">ARC.FITNESS</p><h2>Редактор контента</h2><p class="muted">Управление расписанием тренировок и новостями</p></div><div class="admin-toolbar-actions"><button class="button button-outline" data-editor-refresh type="button">Обновить данные ↻</button><button class="button button-outline" data-editor-logout type="button">Выйти ↗</button></div></div>
+    <p class="form-status" data-editor-status aria-live="polite"></p>
+    <div class="admin-stat-grid admin-stat-grid-three" data-editor-stats>
+      <div class="admin-stat"><span>Занятий в расписании</span><strong>—</strong></div><div class="admin-stat"><span>Новостей опубликовано</span><strong>—</strong></div><div class="admin-stat"><span>Редактор</span><strong>✓</strong></div>
+    </div>
+
+    <section class="dashboard-panel admin-section" id="editor-schedule"><div class="panel-heading"><div><p class="eyebrow">01 — РАСПИСАНИЕ</p><h2>Управление расписанием</h2></div></div>
+      <form class="admin-class-form" data-editor-class-form>
+        <input type="hidden" name="class_id">
+        <div class="admin-form-grid">
+          <label>Название занятия<input name="title" required minlength="2" maxlength="120"></label>
+          <label>Категория<select name="category" required><option value="Силовая">Силовая</option><option value="Функциональная">Функциональная</option><option value="Кардио">Кардио</option><option value="Растяжка">Растяжка</option></select></label>
+          <label>День недели<select name="day_of_week" required><option value="0">Понедельник</option><option value="1">Вторник</option><option value="2">Среда</option><option value="3">Четверг</option><option value="4">Пятница</option><option value="5">Суббота</option><option value="6">Воскресенье</option></select></label>
+          <label>Время начала<input name="starts_at" type="time" required value="18:00"></label>
+          <label>Длительность, минут<input name="duration_minutes" type="number" min="10" max="240" value="45" required></label>
+          <label>Зал<input name="room" required maxlength="80" value="Основной зал"></label>
+          <label>Тренер<select name="trainer_id" data-editor-class-trainer><option value="">Без выбранного тренера</option></select></label>
+          <label>Вместимость группы<input name="capacity" type="number" min="1" max="300" value="12" required></label>
+        </div>
+        <div class="admin-form-actions"><button class="button button-lime" type="submit" data-editor-class-submit>Добавить занятие</button><button class="button button-outline" type="button" data-editor-class-cancel hidden>Отменить редактирование</button></div>
+        <p class="form-status" data-editor-class-form-status aria-live="polite"></p>
+      </form>
+      <div class="admin-table-wrap top-gap"><table class="admin-table admin-table-large"><thead><tr><th>День и время</th><th>Занятие</th><th>Тренер / зал</th><th>Места</th><th>Действия</th></tr></thead><tbody data-editor-classes><tr><td colspan="5">Загрузка…</td></tr></tbody></table></div>
+    </section>
+
+    <section class="dashboard-panel admin-section" id="editor-news"><div class="panel-heading"><div><p class="eyebrow">02 — НОВОСТИ</p><h2>Управление новостями</h2></div></div>
+      <form class="admin-class-form" data-editor-news-form>
+        <input type="hidden" name="news_id">
+        <div class="admin-form-grid">
+          <label class="label-full">Заголовок<input name="title" required minlength="2" maxlength="200"></label>
+          <label>Категория<select name="category" required><option value="Тренировки">Тренировки</option><option value="События">События</option><option value="Здоровье">Здоровье</option><option value="Питание">Питание</option><option value="Новости клуба">Новости клуба</option></select></label>
+          <label>Путь к изображению<input name="image_path" placeholder="/static/images/news-01.jpg" maxlength="200"></label>
+          <label class="label-full">Краткое описание<textarea name="excerpt" required minlength="10" maxlength="300" rows="2"></textarea></label>
+          <label class="label-full">Полный текст<textarea name="body" required minlength="10" maxlength="5000" rows="6"></textarea></label>
+        </div>
+        <div class="admin-form-actions"><button class="button button-lime" type="submit" data-editor-news-submit>Опубликовать новость</button><button class="button button-outline" type="button" data-editor-news-cancel hidden>Отменить редактирование</button></div>
+        <p class="form-status" data-editor-news-form-status aria-live="polite"></p>
+      </form>
+      <div class="admin-table-wrap top-gap"><table class="admin-table admin-table-large"><thead><tr><th>Новость</th><th>Категория</th><th>Дата публикации</th><th>Статус</th><th>Действия</th></tr></thead><tbody data-editor-news-list><tr><td colspan="5">Загрузка…</td></tr></tbody></table></div>
+    </section>
+  </div></section>
+</main>
+<div id="site-footer"></div>
+</body>
+</html>
